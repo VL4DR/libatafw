@@ -9,7 +9,7 @@
  *  @param device_path - the path to the ATA device to popen.
  *  @return ata_fw_error - LIBATA_FW_ERR_SUCCESS on success, and an appropriate error code on error.
 */
-enum ata_fw_error libata_fw__init(IN const char *device_path);
+enum ata_fw_error libatafw__init(IN const char *device_path);
 
 /** @brief this function adds a new firmware chunk to the queue of pending FW download requests. Minimal sanity checks are performed on
  *  the requests.

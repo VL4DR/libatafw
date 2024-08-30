@@ -42,7 +42,7 @@ static void fill_cdb(IN uint32_t offset, IN void *buffer, IN uint32_t buffer_siz
 /* This function creates the actual IO request before it is passed to ioctl. Parameters are assumed to be valid. 
 	It should be noted that cmdp and sbp fields of the filled struct must be released by the caller after the request is processed.
 */
-static enum ata_fw_error fill_ata_download_request(IN uint32_t offset, IN void *buffer, uint32_t buffer_size, OUT sg_io_hdr_t *request)
+static enum ata_fw_error fill_ata_download_request(IN uint32_t offset, IN void *buffer, IN uint32_t buffer_size, OUT sg_io_hdr_t *request)
 {
 	enum ata_fw_error status = ATA_FW_ERR_UNINITIALIZED;
 	struct ata_cdb *request_cdb = NULL;
@@ -87,7 +87,7 @@ l_cleanup:
 	return status;
 }
 
-enum ata_fw_error libata_fw__init(IN const char *device_path)
+enum ata_fw_error libatafw__init(IN const char *device_path)
 {
 	enum ata_fw_error status = ATA_FW_ERR_UNINITIALIZED;
 	int32_t device_fd = INVALID_FILE_DESCRIPTOR;
