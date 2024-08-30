@@ -4,7 +4,6 @@
 #include <libatafw/common.h>
 
 /* SG_IO related defines. */
-#define SENSE_BUFFER_LENGTH					(0x20)
 #define SG_IO_INTERFACE_ID					('S')
 #define ATA_PASSTHROUGH_OPERATION_CODE		(0xA1)
 #define STANDARD_TIMEOUT_MS					(5000) /* 5 seconds. */

@@ -50,7 +50,7 @@ static enum ata_fw_error fill_ata_download_request(IN uint32_t offset, IN void *
 	void *request_sense_buffer = NULL;
 
 	request_cdb = (struct ata_cdb *)calloc(sizeof(*request_cdb), 1);
-	request_sense_buffer = calloc(SENSE_BUFFER_LENGTH, sizeof(uint8_t));
+	request_sense_buffer = calloc(LIBATAFW_SENSE_BUFFER_LENGTH, sizeof(uint8_t));
 
 	if (NULL == request_cdb || NULL == request_sense_buffer) {
 		LIBATAFW_ERROR("NULL Param!\n");
@@ -156,7 +156,7 @@ l_cleanup:
 	return status;
 }
 
-enum ata_fw_error libatafw__execute_requests(IN bool ignore_response_errors)
+enum ata_fw_error libatafw__execute_requests(IN bool ignore_response_errors, OUT OPTIONAL uint8_t *scsi_status, OUT OPTIONAL void *sense_buffer)
 {
 	enum ata_fw_error status = ATA_FW_ERR_UNINITIALIZED;
 	uint16_t request_index = 0;
@@ -174,9 +174,17 @@ enum ata_fw_error libatafw__execute_requests(IN bool ignore_response_errors)
 			goto l_cleanup;
 		}
 
-		request_status = g_ata_fw_context.requests[request_index].status;
+		request_status = current_request->status;
 		if (SCSI_STATUS_GOOD != request_status && !ignore_response_errors) {
 			LIBATAFW_ERROR("SCSI status: %08x.\n", request_status);
+			if (NULL != scsi_status) {
+				*scsi_status = request_status;
+			}
+
+			if (NULL != sense_buffer) {
+				memcpy(sense_buffer, current_request->sbp, LIBATAFW_SENSE_BUFFER_LENGTH);
+			}
+
 			status = ATA_FW_ERR_RESPONSE_ERROR;
 			goto l_cleanup;
 		}
