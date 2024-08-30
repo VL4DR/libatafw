@@ -8,6 +8,7 @@
 #include <libatafw/common.h>
 #include <libatafw/libatafw.h>
 #include <libatafw/libatafw_err.h>
+#include <libatafw/debug.h>
 #include "ata_fw.h"
 
 static struct ata_fw_context g_ata_fw_context;
@@ -52,6 +53,7 @@ static enum ata_fw_error fill_ata_download_request(IN uint32_t offset, IN void *
 	request_sense_buffer = calloc(SENSE_BUFFER_LENGTH, sizeof(uint8_t));
 
 	if (NULL == request_cdb || NULL == request_sense_buffer) {
+		LIBATAFW_ERROR("NULL Param!\n");
 		status = ATA_FW_ERR_EXTERNAL_FUNCTION_FAILED;
 		goto l_cleanup;
 	}
@@ -93,6 +95,7 @@ enum ata_fw_error libatafw__init(IN const char *device_path)
 	int32_t device_fd = INVALID_FILE_DESCRIPTOR;
 
 	if (NULL == device_path) {
+		LIBATAFW_ERROR("NULL Param!\n");
 		status = ATA_FW_ERR_NULL_PARAMETER;
 		goto l_cleanup;
 	}
@@ -102,6 +105,7 @@ enum ata_fw_error libatafw__init(IN const char *device_path)
 
 	device_fd = open(device_path, O_RDWR);
 	if (INVALID_FILE_DESCRIPTOR == device_fd) {
+		LIBATAFW_ERROR("Device could not be opened!\n");
 		status = ATA_FW_ERR_EXTERNAL_FUNCTION_FAILED;
 		goto l_cleanup;
 	}
@@ -126,11 +130,13 @@ enum ata_fw_error libatafw__enqueue_firmware_chunk(IN uint32_t offset, IN void *
 	sg_io_hdr_t *request_to_fill = NULL;
 
 	if (NULL == chunk_data) {
+		LIBATAFW_ERROR("NULL Param!\n");
 		status = ATA_FW_ERR_NULL_PARAMETER;
 		goto l_cleanup;
 	}
 
 	if ((0 != offset % LIBATAFW_SECTOR_SIZE) || (0 != chunk_size % LIBATAFW_SECTOR_SIZE)) {
+		LIBATAFW_ERROR("One of the sizes specified is not aligned to LIBATAFW_SECTOR_SIZE!\n");
 		status = ATA_FW_ERR_INVALID_PARAMETER;
 		goto l_cleanup;
 	}
@@ -156,19 +162,27 @@ enum ata_fw_error libatafw__execute_requests(IN bool ignore_response_errors)
 	uint16_t request_index = 0;
 	uint16_t num_requests = g_ata_fw_context.num_requests;
 	uint8_t request_status = 0;
+	sg_io_hdr_t *current_request = NULL;
 
 	for (request_index = 0; request_index < num_requests; request_index++) {
+		current_request = &g_ata_fw_context.requests[request_index];
+		LIBATAFW_LOG("Executing request with index %d. Transfer size (bytes): %08x\n", request_index, current_request->dxfer_len);
+
 		if (ioctl(g_ata_fw_context.device_fd, SG_IO, &g_ata_fw_context.requests[request_index])) {
+			LIBATAFW_ERROR("ioctl failed!\n");
 			status = ATA_FW_ERR_EXTERNAL_FUNCTION_FAILED;
 			goto l_cleanup;
 		}
 
 		request_status = g_ata_fw_context.requests[request_index].status;
 		if (SCSI_STATUS_GOOD != request_status && !ignore_response_errors) {
+			LIBATAFW_ERROR("SCSI status: %08x.\n", request_status);
 			status = ATA_FW_ERR_RESPONSE_ERROR;
 			goto l_cleanup;
 		}
 	}
+
+	LIBATAFW_LOG("All requests processed!\n");
 
 	reset_ata_fw_request_context();
 

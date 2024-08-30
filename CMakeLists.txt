@@ -5,6 +5,8 @@ project(libatafw
 	ASM
 )
 
+option(LIBATAFW_DEBUG		"Enable debug prints for libatafw" OFF)
+
 set(LIBATAFW_TARGET_NAME	libatafw)
 
 set(LIBATAFW_SOURCES
@@ -14,6 +16,10 @@ set(LIBATAFW_SOURCES
 add_library(${LIBATAFW_TARGET_NAME}
 	${LIBATAFW_SOURCES}
 )
+
+if (LIBATAFW_DEBUG)
+	add_compile_definitions(LIBATAFW_DEBUG)
+endif ()
 
 target_include_directories(${LIBATAFW_TARGET_NAME} PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src
