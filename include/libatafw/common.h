@@ -4,5 +4,3 @@
 
 #define IN
 #define OUT
-
-#define LIBATAFW_SECTOR_SIZE			(0x200)

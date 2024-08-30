@@ -6,7 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libatafw/common.h>
-#include <libatafw/ata_fw_err.h>
+#include <libatafw/libatafw.h>
+#include <libatafw/libatafw_err.h>
 #include "ata_fw.h"
 
 static struct ata_fw_context g_ata_fw_context;
