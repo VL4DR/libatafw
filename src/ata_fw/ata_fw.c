@@ -62,7 +62,7 @@ static enum ata_fw_error fill_ata_download_request(IN uint32_t offset, IN void *
 
 	request->interface_id = SG_IO_INTERFACE_ID;
 	request->cmdp = (unsigned char *)request_cdb;
-	request->mx_sb_len = sizeof(request_sense_buffer);
+	request->mx_sb_len = LIBATAFW_SENSE_BUFFER_LENGTH;
 	request->cmd_len = sizeof(*request_cdb);
 	request->dxfer_direction = SG_DXFER_TO_DEV;
 	request->dxferp = buffer;

@@ -46,7 +46,6 @@ enum t_dir_value
 };
 
 /* ATA standard related defines. */
-#define STATUS_BIT_ABORT_MASK			(0x02)
 enum ata_cmd
 {
 	ATA_CMD_DOWNLOAD_MICROCODE_PIO = 0x92,
