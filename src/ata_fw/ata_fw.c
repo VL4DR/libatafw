@@ -156,10 +156,17 @@ l_cleanup:
 enum ata_fw_error libatafw__enqueue_firmware_chunk(IN uint32_t offset, IN OPTIONAL void *chunk_data, IN uint32_t chunk_size)
 {
 	enum ata_fw_error status = ATA_FW_ERR_UNINITIALIZED;
-	uint16_t next_chunk_index = 0;
+	uint16_t next_chunk_index = g_ata_fw_context.num_requests;
+	uint16_t next_dummy_buffer_index = g_ata_fw_context.num_dummy_buffers;
 	sg_io_hdr_t *request_to_fill = NULL;
 	void *eff_chunk_data = NULL;
 	bool is_dummy_chunk = false;
+
+	if (next_chunk_index >= MAX_FW_CHUNKS) {
+		LIBATAFW_ERROR("No more space left in queue!\n");
+		status = ATA_FW_ERR_NO_SPACE;
+		goto l_cleanup;
+	}
 
 	if (0 == chunk_size) {
 		LIBATAFW_ERROR("Chunk size cannot be 0!\n");
@@ -185,7 +192,6 @@ enum ata_fw_error libatafw__enqueue_firmware_chunk(IN uint32_t offset, IN OPTION
 		is_dummy_chunk = true;
 	}
 
-	next_chunk_index = g_ata_fw_context.num_requests;
 	request_to_fill = &g_ata_fw_context.requests[next_chunk_index];
 
 	status = fill_ata_download_request(offset, eff_chunk_data, chunk_size, request_to_fill);
@@ -194,6 +200,7 @@ enum ata_fw_error libatafw__enqueue_firmware_chunk(IN uint32_t offset, IN OPTION
 	}
 
 	if (is_dummy_chunk) {
+		g_ata_fw_context.dummy_buffers[next_dummy_buffer_index] = eff_chunk_data;
 		g_ata_fw_context.num_dummy_buffers++;
 	}
 
@@ -208,7 +215,7 @@ l_cleanup:
 	if (NULL != eff_chunk_data) {
 		free(eff_chunk_data);
 	}
-	
+
 	return status;
 }
 
