@@ -3,6 +3,8 @@
 #include <scsi/sg.h>
 #include <libatafw/common.h>
 
+#define INVALID_FILE_DESCRIPTOR				(-1)
+
 /* SG_IO related defines. */
 #define SG_IO_INTERFACE_ID					('S')
 #define ATA_PASSTHROUGH_OPERATION_CODE		(0xA1)
@@ -88,11 +90,11 @@ struct ata_cdb
 
 #define MAX_FW_CHUNKS					(1024)
 
-#define INVALID_FILE_DESCRIPTOR			(-1)
-
 struct ata_fw_context
 {
 	int32_t device_fd;
 	uint16_t num_requests;
 	sg_io_hdr_t requests[MAX_FW_CHUNKS];
+	uint16_t num_dummy_buffers;
+	void *dummy_buffers[MAX_FW_CHUNKS];
 };

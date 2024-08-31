@@ -16,13 +16,16 @@ static struct ata_fw_context g_ata_fw_context;
 static void reset_ata_fw_request_context(void)
 {
 	g_ata_fw_context.num_requests = 0;
+	g_ata_fw_context.num_dummy_buffers = 0;
 	memset(g_ata_fw_context.requests, 0, sizeof(g_ata_fw_context.requests));
+	memset(g_ata_fw_context.dummy_buffers, 0, sizeof(g_ata_fw_context.dummy_buffers));
 }
 
 static void release_ata_fw_requests_resources(void)
 {
 	sg_io_hdr_t *request = NULL;
 	uint16_t num_requests = g_ata_fw_context.num_requests;
+	uint16_t num_dummy_buffers = g_ata_fw_context.num_dummy_buffers;
 	uint16_t i = 0;
 
 	for (i = 0; i < num_requests; i++) {
@@ -35,6 +38,13 @@ static void release_ata_fw_requests_resources(void)
 		if (NULL != request->cmdp) {
 			free(request->cmdp);
 			request->cmdp = NULL;
+		}
+	}
+
+	for (i = 0; i < num_dummy_buffers; i++) {
+		if (NULL != g_ata_fw_context.dummy_buffers[i]) {
+			free(g_ata_fw_context.dummy_buffers[i]);
+			g_ata_fw_context.dummy_buffers[i] = NULL;
 		}
 	}
 }
@@ -143,15 +153,24 @@ l_cleanup:
 	return status;
 }
 
-enum ata_fw_error libatafw__enqueue_firmware_chunk(IN uint32_t offset, IN void *chunk_data, IN uint32_t chunk_size)
+enum ata_fw_error libatafw__enqueue_firmware_chunk(IN uint32_t offset, IN OPTIONAL void *chunk_data, IN uint32_t chunk_size)
 {
 	enum ata_fw_error status = ATA_FW_ERR_UNINITIALIZED;
-	uint16_t next_chunk_index = 0;
+	uint16_t next_chunk_index = g_ata_fw_context.num_requests;
+	uint16_t next_dummy_buffer_index = g_ata_fw_context.num_dummy_buffers;
 	sg_io_hdr_t *request_to_fill = NULL;
+	void *eff_chunk_data = NULL;
+	bool is_dummy_chunk = false;
 
-	if (NULL == chunk_data) {
-		LIBATAFW_ERROR("NULL Param!\n");
-		status = ATA_FW_ERR_NULL_PARAMETER;
+	if (next_chunk_index >= MAX_FW_CHUNKS) {
+		LIBATAFW_ERROR("No more space left in queue!\n");
+		status = ATA_FW_ERR_NO_SPACE;
+		goto l_cleanup;
+	}
+
+	if (0 == chunk_size) {
+		LIBATAFW_ERROR("Chunk size cannot be 0!\n");
+		status = ATA_FW_ERR_INVALID_PARAMETER;
 		goto l_cleanup;
 	}
 
@@ -161,15 +180,65 @@ enum ata_fw_error libatafw__enqueue_firmware_chunk(IN uint32_t offset, IN void *
 		goto l_cleanup;
 	}
 
-	next_chunk_index = g_ata_fw_context.num_requests;
+	eff_chunk_data = chunk_data;
+	if (NULL == chunk_data) {
+		eff_chunk_data = calloc(chunk_size, sizeof(uint8_t));
+		if (NULL == eff_chunk_data) {
+			LIBATAFW_ERROR("Allocating a dummy chunk failed!\n");
+			status = ATA_FW_ERR_EXTERNAL_FUNCTION_FAILED;
+			goto l_cleanup;
+		}
+
+		is_dummy_chunk = true;
+	}
+
 	request_to_fill = &g_ata_fw_context.requests[next_chunk_index];
 
-	status = fill_ata_download_request(offset, chunk_data, chunk_size, request_to_fill);
+	status = fill_ata_download_request(offset, eff_chunk_data, chunk_size, request_to_fill);
 	if (ATA_FW_ERR_SUCCESS != status) {
 		goto l_cleanup;
 	}
 
+	if (is_dummy_chunk) {
+		g_ata_fw_context.dummy_buffers[next_dummy_buffer_index] = eff_chunk_data;
+		g_ata_fw_context.num_dummy_buffers++;
+	}
+
 	g_ata_fw_context.num_requests++;
+
+	/* Transfer ownership. */
+	eff_chunk_data = NULL;
+
+	status = ATA_FW_ERR_SUCCESS;
+l_cleanup:
+	
+	if (NULL != eff_chunk_data) {
+		free(eff_chunk_data);
+	}
+
+	return status;
+}
+
+enum ata_fw_error libatafw__enqueue_multiple_firmware_chunks(IN struct ata_fw_chunk *chunks, IN uint16_t num_chunks)
+{
+	enum ata_fw_error status = ATA_FW_ERR_UNINITIALIZED;
+	uint16_t i = 0;
+
+	if (NULL == chunks || 0 == num_chunks) {
+		LIBATAFW_ERROR("NULL Param!\n");
+		status = ATA_FW_ERR_NULL_PARAMETER;
+		goto l_cleanup;
+	}
+
+	for (i = 0; i < num_chunks; i++) {
+
+		status = libatafw__enqueue_firmware_chunk(chunks[i].offset, chunks[i].chunk_data, chunks[i].chunk_size);
+		if (ATA_FW_ERR_SUCCESS != status) {
+			release_ata_fw_requests_resources();
+			reset_ata_fw_request_context();
+			goto l_cleanup;
+		}
+	}
 
 	status = ATA_FW_ERR_SUCCESS;
 l_cleanup:
