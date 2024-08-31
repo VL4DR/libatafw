@@ -176,6 +176,31 @@ l_cleanup:
 	return status;
 }
 
+enum ata_fw_error libatafw__enqueue_multiple_firmware_chunks(IN struct ata_fw_chunk *chunks, IN uint16_t num_chunks)
+{
+	enum ata_fw_error status = ATA_FW_ERR_UNINITIALIZED;
+	uint16_t i = 0;
+
+	if (NULL == chunks || 0 == num_chunks) {
+		LIBATAFW_ERROR("NULL Param!\n");
+		status = ATA_FW_ERR_NULL_PARAMETER;
+		goto l_cleanup;
+	}
+
+	for (i = 0; i < num_chunks; i++) {
+		status = libatafw__enqueue_firmware_chunk(chunks[i].offset, chunks[i].chunk_data, chunks[i].chunk_size);
+		if (ATA_FW_ERR_SUCCESS != status) {
+			release_ata_fw_requests_resources();
+			reset_ata_fw_request_context();
+			goto l_cleanup;
+		}
+	}
+
+	status = ATA_FW_ERR_SUCCESS;
+l_cleanup:
+	return status;
+}
+
 enum ata_fw_error libatafw__execute_requests(IN bool ignore_response_errors, OUT OPTIONAL uint8_t *scsi_status, OUT OPTIONAL void *sense_buffer)
 {
 	enum ata_fw_error status = ATA_FW_ERR_UNINITIALIZED;

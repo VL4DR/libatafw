@@ -6,6 +6,13 @@
 #define LIBATAFW_SECTOR_SIZE			(0x200)
 #define LIBATAFW_SENSE_BUFFER_LENGTH	(0x20)
 
+struct ata_fw_chunk
+{
+	uint32_t offset;
+	void *chunk_data;
+	uint32_t chunk_size;
+};
+
 /** @brief this function initializes the library and must be called only once.
  *  @param device_path - the path to the ATA device to popen.
  *  @return ata_fw_error - LIBATA_FW_ERR_SUCCESS on success, and an appropriate error code on error.
@@ -22,6 +29,15 @@ enum ata_fw_error libatafw__init(IN const char *device_path);
  *  @return ata_fw_error - LIBATA_FW_ERR_SUCCESS on success, and an appropriate error code on error.
 */
 enum ata_fw_error libatafw__enqueue_firmware_chunk(IN uint32_t offset, IN void *chunk_data, IN uint32_t chunk_size);
+
+/** @brief this function adds multiple firmware chunks. This is a convenience function that allows performing multiple enqueues in a single call.
+ *  This function makes sure that the chunk metadata is correct, and halts on the first invalid chunk. If that happens, then all accumulated chunks
+ *  are released (whether they were enqueued using this function or using `libatafw__enqueue_firmware_chunk`).
+ *  @param chunks - a pointer to an array of chunks.
+ *  @param num_chunks - the number of chunks in `chunks`.
+ *  @return ata_fw_error - LIBATA_FW_ERR_SUCCESS on success, and an appropriate error code on error.
+*/
+enum ata_fw_error libatafw__enqueue_multiple_firmware_chunks(IN struct ata_fw_chunk *chunks, IN uint16_t num_chunks);
 
 /** @brief this function executes the accumulated requests inside the request queue. The requests are automatically deleted from the queue
  *  so that the queue is ready for a fresh sequence of requests.
