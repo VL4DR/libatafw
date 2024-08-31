@@ -212,8 +212,8 @@ enum ata_fw_error libatafw__execute_requests(IN bool ignore_response_errors, OUT
 
 	LIBATAFW_LOG("All requests processed!\n");
 
-	reset_ata_fw_request_context();
 	release_ata_fw_requests_resources();
+	reset_ata_fw_request_context();
 
 	status = ATA_FW_ERR_SUCCESS;
 l_cleanup:
@@ -222,8 +222,8 @@ l_cleanup:
 
 void libatafw__deinit(void)
 {
-	reset_ata_fw_request_context();
 	release_ata_fw_requests_resources();
+	reset_ata_fw_request_context();
 	close(g_ata_fw_context.device_fd);
 	g_ata_fw_context.device_fd = INVALID_FILE_DESCRIPTOR;
 }
