@@ -19,6 +19,26 @@ static void reset_ata_fw_request_context(void)
 	memset(g_ata_fw_context.requests, 0, sizeof(g_ata_fw_context.requests));
 }
 
+static void release_ata_fw_requests_resources(void)
+{
+	sg_io_hdr_t *request = NULL;
+	uint16_t num_requests = g_ata_fw_context.num_requests;
+	uint16_t i = 0;
+
+	for (i = 0; i < num_requests; i++) {
+		request = &g_ata_fw_context.requests[i];
+		if (NULL != request->sbp) {
+			free(request->sbp);
+			request->sbp = NULL;
+		}
+
+		if (NULL != request->cmdp) {
+			free(request->cmdp);
+			request->cmdp = NULL;
+		}
+	}
+}
+
 /* This function fills the CDB structure so that it would be suitable to pass it to the SG_IO subsystem for sending a single firmware chunk. 
 	This function assumes that the parameters are correct (i.e., no NULL parameters and that all lengths provided to this function are aligned to sector size).
 */
@@ -53,7 +73,7 @@ static enum ata_fw_error fill_ata_download_request(IN uint32_t offset, IN void *
 	request_sense_buffer = calloc(LIBATAFW_SENSE_BUFFER_LENGTH, sizeof(uint8_t));
 
 	if (NULL == request_cdb || NULL == request_sense_buffer) {
-		LIBATAFW_ERROR("NULL Param!\n");
+		LIBATAFW_ERROR("Memory allocation failed for either the request CDB or the sense buffer!\n");
 		status = ATA_FW_ERR_EXTERNAL_FUNCTION_FAILED;
 		goto l_cleanup;
 	}
@@ -193,6 +213,7 @@ enum ata_fw_error libatafw__execute_requests(IN bool ignore_response_errors, OUT
 	LIBATAFW_LOG("All requests processed!\n");
 
 	reset_ata_fw_request_context();
+	release_ata_fw_requests_resources();
 
 	status = ATA_FW_ERR_SUCCESS;
 l_cleanup:
@@ -202,6 +223,7 @@ l_cleanup:
 void libatafw__deinit(void)
 {
 	reset_ata_fw_request_context();
+	release_ata_fw_requests_resources();
 	close(g_ata_fw_context.device_fd);
 	g_ata_fw_context.device_fd = INVALID_FILE_DESCRIPTOR;
 }
